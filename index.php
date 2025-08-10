@@ -1,4 +1,5 @@
 <?php
+// Test PR voor workflow
 /* ===========================================================
    AutoKosten – Privé vs Zakelijk (Youngtimer ready)
    Single-file PHP app voor Hostinger
