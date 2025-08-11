@@ -13,7 +13,7 @@ session_start();
 define('APP_NAME', 'AutoKosten Calculator');
 define('APP_VERSION', '1.0.0');
 
-// Include helpers (maken we zo)
+// Include helpers
 require_once 'includes/functions.php';
 require_once 'includes/calculator.php';
 
@@ -104,6 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <li>Afschrijving: € <?= number_format($resultaat['prive']['afschrijving'], 2, ',', '.') ?></li>
                             <li>Brandstof: € <?= number_format($resultaat['prive']['brandstof'], 2, ',', '.') ?></li>
                             <li>Onderhoud: € <?= number_format($resultaat['prive']['onderhoud'], 2, ',', '.') ?></li>
+                            <li>Verzekering: € <?= number_format($resultaat['prive']['verzekering'], 2, ',', '.') ?></li>
+                            <li>Wegenbelasting: € <?= number_format($resultaat['prive']['wegenbelasting'], 2, ',', '.') ?></li>
                         </ul>
                     </div>
                 </div>
