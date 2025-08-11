@@ -1,0 +1,25 @@
+# Config files
+.env
+config/local.php
+
+# Logs
+*.log
+error_log
+debug.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies (voor later)
+vendor/
+node_modules/
+
+# Uploads/cache
+uploads/
+cache/
+tmp/
