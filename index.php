@@ -643,16 +643,285 @@ if (isset($_GET['action']) && $_GET['action'] === 'rdw_lookup') {
         }
         
         // Bereken kosten functie
-        function berekenKosten() {
-            // TODO: Implementeer berekening
-            alert('Berekening komt in de volgende update!');
-        }
+       function berekenKosten() {
+    // Verzamel alle form data
+    const dagwaarde = parseFloat(document.getElementById('dagwaarde').value) || 15000;
+    const cataloguswaarde = parseFloat(document.getElementById('cataloguswaarde').value) || 30000;
+    const bijtelling_pct = parseFloat(document.getElementById('bijtelling_percentage').value) || 22;
+    const km_per_maand = parseInt(document.getElementById('km_per_maand').value) || 2000;
+    const verbruik = parseFloat(document.getElementById('verbruik').value) || 7.0;
+    const brandstofprijs = parseFloat(document.getElementById('brandstofprijs').value) || 1.95;
+    const verzekering = parseFloat(document.getElementById('verzekering').value) || 75;
+    const mrb = parseFloat(document.getElementById('mrb_per_maand').value) || 50;
+    const bouwjaar = parseInt(document.getElementById('bouwjaar').value) || 2020;
+    
+    // Extra waarden
+    const aankoopprijs = parseFloat(document.getElementById('aankoopprijs').value) || dagwaarde;
+    const restwaarde = parseFloat(document.getElementById('restwaarde').value) || dagwaarde * 0.3;
+    const afschrijving_jaren = parseInt(document.getElementById('afschrijving_jaren').value) || 5;
+    
+    // Constanten
+    const inkomsten_belasting = 37; // 37% belastingtarief (kan later aanpasbaar worden)
+    const onderhoud_per_maand = 100; // Geschatte onderhoudskosten
+    
+    // Check of het een youngtimer is
+    const leeftijd = new Date().getFullYear() - bouwjaar;
+    const isYoungtimer = leeftijd >= 15 && leeftijd <= 30;
+    
+    // === ZAKELIJK BEREKENING ===
+    const bijtelling_basis = isYoungtimer ? dagwaarde : cataloguswaarde;
+    const bijtelling_percentage = isYoungtimer ? 35 : bijtelling_pct;
+    const bijtelling_jaar = bijtelling_basis * (bijtelling_percentage / 100);
+    const bijtelling_maand = bijtelling_jaar / 12;
+    const extra_belasting_maand = bijtelling_maand * (inkomsten_belasting / 100);
+    const zakelijk_totaal_maand = extra_belasting_maand;
+    const zakelijk_totaal_jaar = zakelijk_totaal_maand * 12;
+    
+    // === PRIVÉ BEREKENING ===
+    const afschrijving_maand = (aankoopprijs - restwaarde) / (afschrijving_jaren * 12);
+    const brandstof_maand = (km_per_maand / 100) * verbruik * brandstofprijs;
+    const apk_maand = leeftijd > 3 ? (50 / 12) : 0; // €50 per jaar voor APK
+    
+    const prive_totaal_maand = afschrijving_maand + brandstof_maand + verzekering + 
+                                onderhoud_per_maand + mrb + apk_maand;
+    const prive_totaal_jaar = prive_totaal_maand * 12;
+    
+    // === VERGELIJKING ===
+    const beste_optie = zakelijk_totaal_maand < prive_totaal_maand ? 'zakelijk' : 'prive';
+    const verschil_maand = Math.abs(zakelijk_totaal_maand - prive_totaal_maand);
+    const verschil_jaar = verschil_maand * 12;
+    const verschil_percentage = (verschil_jaar / Math.max(zakelijk_totaal_jaar, prive_totaal_jaar)) * 100;
+    
+    // === TOON RESULTATEN ===
+    let resultsHTML = `
+        <div class="results-container" style="
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        ">
+            <h2 style="color: #667eea; margin-bottom: 30px; text-align: center;">
+                📊 Berekening Resultaat
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+                <!-- Zakelijk Card -->
+                <div style="
+                    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+                    border: 2px solid #667eea;
+                    border-radius: 10px;
+                    padding: 20px;
+                ">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">🏢 Auto van de Zaak</h3>
+                    <div style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 20px;">
+                        €${formatNumber(zakelijk_totaal_maand)}<span style="font-size: 16px; font-weight: normal;">/maand</span>
+                    </div>
+                    <div style="border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>Bijtelling (${bijtelling_percentage}%):</span>
+                            <strong>€${formatNumber(bijtelling_maand)}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>Extra belasting (${inkomsten_belasting}%):</span>
+                            <strong>€${formatNumber(extra_belasting_maand)}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 15px; padding-top: 10px; border-top: 1px solid #667eea;">
+                            <span>Per jaar:</span>
+                            <strong style="color: #667eea;">€${formatNumber(zakelijk_totaal_jaar)}</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Privé Card -->
+                <div style="
+                    background: linear-gradient(135deg, #764ba215 0%, #667eea15 100%);
+                    border: 2px solid #764ba2;
+                    border-radius: 10px;
+                    padding: 20px;
+                ">
+                    <h3 style="color: #764ba2; margin-bottom: 15px;">🚗 Privé Auto</h3>
+                    <div style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 20px;">
+                        €${formatNumber(prive_totaal_maand)}<span style="font-size: 16px; font-weight: normal;">/maand</span>
+                    </div>
+                    <div style="border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>Afschrijving:</span>
+                            <strong>€${formatNumber(afschrijving_maand)}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>Brandstof:</span>
+                            <strong>€${formatNumber(brandstof_maand)}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>Verzekering:</span>
+                            <strong>€${formatNumber(verzekering)}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>Onderhoud:</span>
+                            <strong>€${formatNumber(onderhoud_per_maand)}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>MRB:</span>
+                            <strong>€${formatNumber(mrb)}</strong>
+                        </div>
+                        ${apk_maand > 0 ? `
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>APK:</span>
+                            <strong>€${formatNumber(apk_maand)}</strong>
+                        </div>
+                        ` : ''}
+                        <div style="display: flex; justify-content: space-between; margin-top: 15px; padding-top: 10px; border-top: 1px solid #764ba2;">
+                            <span>Per jaar:</span>
+                            <strong style="color: #764ba2;">€${formatNumber(prive_totaal_jaar)}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Advies -->
+            <div style="
+                background: ${beste_optie === 'zakelijk' ? 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)' : 'linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)'};
+                color: white;
+                border-radius: 10px;
+                padding: 25px;
+                text-align: center;
+            ">
+                <h3 style="margin-bottom: 15px; font-size: 24px;">
+                    💡 Advies
+                </h3>
+                <p style="font-size: 20px; margin-bottom: 10px;">
+                    <strong>${beste_optie === 'zakelijk' ? 'Auto van de zaak' : 'Privé auto'}</strong> is voordeliger!
+                </p>
+                <p style="font-size: 18px; opacity: 0.95;">
+                    Je bespaart <strong>€${formatNumber(verschil_jaar)}</strong> per jaar 
+                    (${verschil_percentage.toFixed(1)}% goedkoper)
+                </p>
+                <p style="margin-top: 15px; opacity: 0.9;">
+                    Dat is €${formatNumber(verschil_maand)} per maand in je portemonnee!
+                </p>
+                ${isYoungtimer ? `
+                <p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.3); opacity: 0.9;">
+                    ⚠️ Let op: Voor deze youngtimer (${leeftijd} jaar oud) geldt ${bijtelling_percentage}% bijtelling over de dagwaarde.
+                </p>
+                ` : ''}
+            </div>
+            
+            <!-- Extra informatie -->
+            <div style="
+                margin-top: 30px;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 10px;
+                border-left: 4px solid #667eea;
+            ">
+                <h4 style="margin-bottom: 15px; color: #333;">📌 Extra informatie</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="margin-bottom: 10px;">
+                        ✓ Berekening is gebaseerd op <strong>${km_per_maand * 12}</strong> km per jaar
+                    </li>
+                    <li style="margin-bottom: 10px;">
+                        ✓ Brandstofverbruik: <strong>${verbruik}</strong> per 100km à €${brandstofprijs}
+                    </li>
+                    <li style="margin-bottom: 10px;">
+                        ✓ ${isYoungtimer ? 'Youngtimer regeling toegepast' : `Normale bijtelling van ${bijtelling_pct}%`}
+                    </li>
+                    <li style="margin-bottom: 10px;">
+                        ✓ Belastingtarief: ${inkomsten_belasting}% (kan afwijken per inkomen)
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Bewaar knop -->
+            <div style="text-align: center; margin-top: 30px;">
+                <button onclick="saveCalculation()" style="
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border: none;
+                    padding: 15px 40px;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    margin-right: 10px;
+                ">
+                    💾 Bewaar Berekening
+                </button>
+                <button onclick="window.print()" style="
+                    background: white;
+                    color: #667eea;
+                    border: 2px solid #667eea;
+                    padding: 15px 40px;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                ">
+                    🖨️ Print Resultaat
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Voeg resultaten toe aan de pagina
+    let resultsDiv = document.getElementById('calculation-results');
+    if (!resultsDiv) {
+        resultsDiv = document.createElement('div');
+        resultsDiv.id = 'calculation-results';
+        document.querySelector('.main-content').appendChild(resultsDiv);
+    }
+    resultsDiv.innerHTML = resultsHTML;
+    
+    // Scroll naar resultaten
+    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Bewaar in localStorage
+    const calculationData = {
+        kenteken: document.getElementById('kenteken').value,
+        merk_model: document.getElementById('merk_model').value,
+        timestamp: new Date().toISOString(),
+        zakelijk: {
+            maand: zakelijk_totaal_maand,
+            jaar: zakelijk_totaal_jaar
+        },
+        prive: {
+            maand: prive_totaal_maand,
+            jaar: prive_totaal_jaar
+        },
+        advies: beste_optie,
+        besparing: verschil_jaar
+    };
+    
+    try {
+        localStorage.setItem('laatsteBerekening', JSON.stringify(calculationData));
+    } catch(e) {
+        console.log('Kon niet opslaan in localStorage');
+    }
+}
+
+// Helper functie voor nummer formatting
+function formatNumber(num) {
+    return new Intl.NumberFormat('nl-NL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(num);
+}
+
+// Functie om berekening op te slaan
+function saveCalculation() {
+    const data = localStorage.getItem('laatsteBerekening');
+    if (data) {
+        const blob = new Blob([data], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `autokosten_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
         
-        // Test met voorbeeldkenteken bij laden
-        window.addEventListener('load', function() {
-            // Uncomment om te testen:
-            // document.getElementById('kenteken').value = 'GB-320-B';
-        });
+        // Toon bevestiging
+        alert('✅ Berekening opgeslagen! Check je Downloads folder.');
+    }
+});
     </script>
 </body>
 </html>
