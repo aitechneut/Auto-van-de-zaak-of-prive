@@ -1,0 +1,170 @@
+/* AutoKosten Calculator Styling */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    overflow: hidden;
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+main {
+    padding: 30px;
+}
+
+.form-section {
+    margin-bottom: 30px;
+}
+
+.form-section h2 {
+    color: #333;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #667eea;
+}
+
+label {
+    display: block;
+    margin-bottom: 15px;
+    color: #555;
+    font-weight: 500;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn-calculate {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn-calculate:hover {
+    transform: translateY(-2px);
+}
+
+.resultaat {
+    margin-top: 40px;
+    padding: 30px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.resultaat h2 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.resultaat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.optie {
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    border: 2px solid #e0e0e0;
+}
+
+.optie h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.kosten {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.optie ul {
+    list-style: none;
+}
+
+.optie li {
+    padding: 5px 0;
+    color: #666;
+}
+
+.advies {
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    border: 2px solid #667eea;
+}
+
+.advies.zakelijk {
+    border-color: #4CAF50;
+    background: #f1f8e9;
+}
+
+.advies.prive {
+    border-color: #FF9800;
+    background: #fff3e0;
+}
+
+.besparing {
+    margin-top: 10px;
+    font-size: 18px;
+}
+
+footer {
+    background: #f8f9fa;
+    padding: 20px;
+    text-align: center;
+    color: #666;
+}
+
+@media (max-width: 600px) {
+    .resultaat-grid {
+        grid-template-columns: 1fr;
+    }
+}

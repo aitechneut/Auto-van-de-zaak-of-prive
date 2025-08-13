@@ -1,0 +1,88 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Thumbnails
+Thumbs.db
+
+# IDE specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+error_log
+access_log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Config files met gevoelige data
+config.local.php
+.env
+.env.local
+
+# Cache directories
+cache/
+tmp/
+temp/
+
+# Backup files
+*.bak
+*.backup
+*.old
+backup/
+
+# Database files
+*.sql
+*.sqlite
+*.db
+
+# Compiled source
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Packages
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Node modules (voor toekomstige JS development)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Composer (voor toekomstige PHP packages)
+vendor/
+composer.lock
+
+# Test coverage
+coverage/
+*.coverage
+.phpunit.result.cache
+
+# Excel tijdelijke bestanden
+~$*.xlsx
+~$*.xls
+
+# Persoonlijke notities
+notes.txt
+todo.txt
+private/
