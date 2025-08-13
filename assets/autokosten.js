@@ -1,38 +1,28 @@
 // AutoKosten Calculator JavaScript
-// Handles calculations, UI updates, and data management
+// Professional Business Version 2.0
 
-// Global state voor meerdere auto's
-let autoData = {};
-let currentAutoId = null;
-let autoCounter = 0;
-
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('AutoKosten Calculator loaded');
     initializeCalculator();
 });
 
-/**
- * Initialize calculator
- */
 function initializeCalculator() {
     // Setup event listeners
     setupEventListeners();
     
-    // Load saved data if exists
-    loadSavedData();
-    
-    // Initialize first auto
-    if (Object.keys(autoData).length === 0) {
-        addNewAuto();
-    }
+    // Set default values
+    setDefaultValues();
 }
 
-/**
- * Setup all event listeners
- */
 function setupEventListeners() {
-    // Kenteken format on input
+    // Kenteken lookup
+    const rdwButton = document.getElementById('rdw-lookup');
     const kentekenInput = document.getElementById('kenteken');
+    
+    if (rdwButton) {
+        rdwButton.addEventListener('click', lookupKenteken);
+    }
+    
     if (kentekenInput) {
         kentekenInput.addEventListener('input', formatKenteken);
         kentekenInput.addEventListener('keypress', function(e) {
@@ -42,617 +32,264 @@ function setupEventListeners() {
         });
     }
     
-    // Auto-calculate on value changes
-    document.querySelectorAll('input[type="number"], select').forEach(element => {
-        element.addEventListener('change', function() {
-            if (currentAutoId) {
-                updateAutoData();
-                berekenKosten();
-            }
-        });
+    // Calculate button
+    const calculateButton = document.getElementById('calculate');
+    if (calculateButton) {
+        calculateButton.addEventListener('click', berekenKosten);
+    }
+    
+    // Auto-calculate on input changes
+    const inputs = document.querySelectorAll('input[type="number"]');
+    inputs.forEach(input => {
+        input.addEventListener('change', debounce(berekenKosten, 500));
     });
-    
-    // Dark mode toggle
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', toggleDarkMode);
-    }
 }
 
-/**
- * Format kenteken with dashes
- */
-function formatKenteken(e) {
-    let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+function setDefaultValues() {
+    // Set current year defaults
+    const currentYear = new Date().getFullYear();
     
-    if (value.length >= 4) {
-        let formatted = '';
-        // Try XX-XX-XX format
-        if (value.length <= 6) {
-            formatted = value.slice(0,2) + '-' + value.slice(2,4) + '-' + value.slice(4,6);
-        } else {
-            // Try XX-XXX-X format
-            formatted = value.slice(0,2) + '-' + value.slice(2,5) + '-' + value.slice(5,6);
-        }
-        
-        if (formatted !== e.target.value) {
-            e.target.value = formatted;
-        }
-    }
+    // Update any year-dependent calculations
+    updateBijtelling();
 }
 
-/**
- * Lookup kenteken via RDW API
- */
+function formatKenteken() {
+    const input = document.getElementById('kenteken');
+    if (!input) return;
+    
+    let value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    
+    if (value.length <= 6) {
+        // XX-XX-XX format (old)
+        value = value.replace(/(\w{2})(\w{2})(\w{2})/, '$1-$2-$3');
+    } else {
+        // XX-XXX-X format (new)
+        value = value.replace(/(\w{2})(\w{3})(\w{1,3})/, '$1-$2-$3');
+    }
+    
+    input.value = value;
+}
+
 async function lookupKenteken() {
     const kentekenInput = document.getElementById('kenteken');
-    const kenteken = kentekenInput.value.replace(/[^A-Z0-9]/g, '');
-    const message = document.getElementById('message');
-    const spinner = document.getElementById('lookup-spinner');
-    const lookupText = document.getElementById('lookup-text');
-    const autoInfo = document.getElementById('auto-info');
+    const rdwButton = document.getElementById('rdw-lookup');
     
-    // Reset messages
-    message.classList.remove('active', 'error', 'success');
-    
-    if (kenteken.length < 6) {
-        showMessage('Vul een geldig kenteken in (minimaal 6 tekens)', 'error');
+    if (!kentekenInput || !kentekenInput.value.trim()) {
+        alert('Voer eerst een kenteken in');
         return;
     }
     
-    // Show loading
-    spinner.classList.add('active');
-    lookupText.style.display = 'none';
+    const kenteken = kentekenInput.value.trim();
+    
+    // Update button state
+    rdwButton.disabled = true;
+    rdwButton.textContent = 'Ophalen...';
     
     try {
-        const response = await fetch(`?action=rdw_lookup&kenteken=${kenteken}`);
+        const response = await fetch(`?action=rdw_lookup&kenteken=${encodeURIComponent(kenteken)}`);
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+            // Update vehicle info display
+            updateVehicleInfo(data.data);
+            
+            // Update form fields
+            updateFormFields(data.data);
+            
+            // Show vehicle info section
+            const vehicleInfo = document.getElementById('vehicle-info');
+            if (vehicleInfo) {
+                vehicleInfo.style.display = 'block';
+            }
+            
+            // Auto-calculate
+            berekenKosten();
+            
+        } else {
+            alert(data.error || 'Kenteken niet gevonden');
+        }
+        
+    } catch (error) {
+        console.error('RDW lookup error:', error);
+        alert('Fout bij ophalen gegevens. Probeer opnieuw.');
+    } finally {
+        // Reset button
+        rdwButton.disabled = false;
+        rdwButton.textContent = 'Gegevens Ophalen';
+    }
+}
+
+function updateVehicleInfo(data) {
+    // Update vehicle info display
+    const merkModel = document.getElementById('merk-model');
+    const bouwjaar = document.getElementById('bouwjaar');
+    const brandstof = document.getElementById('brandstof');
+    const gewicht = document.getElementById('gewicht');
+    const bijtelling = document.getElementById('bijtelling-info');
+    
+    if (merkModel) merkModel.textContent = `${data.merk} ${data.handelsbenaming}`;
+    if (bouwjaar) bouwjaar.textContent = data.bouwjaar;
+    if (brandstof) brandstof.textContent = data.brandstof;
+    if (gewicht) gewicht.textContent = data.gewicht;
+    if (bijtelling) {
+        bijtelling.textContent = `${data.bijtelling_percentage}% (${data.bijtelling_reden})`;
+    }
+}
+
+function updateFormFields(data) {
+    // Update form inputs with RDW data
+    const fields = {
+        'cataloguswaarde': data.dagwaarde * 1.5, // Estimate catalogus from dagwaarde
+        'dagwaarde': data.dagwaarde,
+        'bijtelling_percentage': data.bijtelling_percentage,
+        'mrb': data.mrb_per_maand
+    };
+    
+    Object.keys(fields).forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field && fields[fieldId]) {
+            field.value = Math.round(fields[fieldId]);
+        }
+    });
+    
+    // Update aankoopprijs to match cataloguswaarde
+    const catalogus = document.getElementById('cataloguswaarde');
+    const aankoopprijs = document.getElementById('aankoopprijs');
+    if (catalogus && aankoopprijs) {
+        aankoopprijs.value = catalogus.value;
+    }
+    
+    // Update restwaarde (30% of aankoopprijs)
+    const restwaarde = document.getElementById('restwaarde');
+    if (aankoopprijs && restwaarde) {
+        restwaarde.value = Math.round(aankoopprijs.value * 0.3);
+    }
+}
+
+async function berekenKosten() {
+    // Get all form values
+    const formData = getFormData();
+    
+    if (!formData.km_per_maand || !formData.bruto_salaris) {
+        // Don't calculate if essential fields are missing
+        return;
+    }
+    
+    try {
+        // Show calculating state
+        showCalculating(true);
+        
+        const response = await fetch('', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                action: 'calculate',
+                ...formData
+            })
+        });
+        
         const data = await response.json();
         
         if (data.success) {
-            // Fill fields with RDW data
-            fillAutoData(data.data);
-            
-            // Show auto info section
-            autoInfo.classList.add('active');
-            
-            // Save to current auto
-            if (currentAutoId) {
-                updateAutoData();
-            }
-            
-            showMessage('✅ Voertuiggegevens succesvol opgehaald!', 'success');
-            
-            // Auto-calculate
-            setTimeout(berekenKosten, 500);
+            updateResults(data);
+            showResults();
         } else {
-            showMessage(`❌ ${data.error || 'Kenteken niet gevonden'}`, 'error');
+            console.error('Calculation error:', data);
         }
-    } catch (error) {
-        showMessage('❌ Er ging iets mis. Probeer het opnieuw.', 'error');
-        console.error('RDW Lookup error:', error);
-    } finally {
-        // Hide loading
-        spinner.classList.remove('active');
-        lookupText.style.display = 'inline';
-    }
-}
-
-/**
- * Fill form with auto data
- */
-function fillAutoData(data) {
-    // Update title
-    document.getElementById('auto-title').textContent = 
-        `${data.merk} ${data.handelsbenaming}`;
-    document.getElementById('auto-badge').textContent = 
-        `${data.brandstof} - ${data.bouwjaar}`;
-    
-    // Fill form fields
-    const fields = {
-        'merk_model': `${data.merk} ${data.handelsbenaming}`,
-        'bouwjaar': data.bouwjaar,
-        'brandstof': data.brandstof,
-        'gewicht': data.gewicht,
-        'dagwaarde': data.dagwaarde,
-        'bijtelling_percentage': data.bijtelling_percentage,
-        'mrb_per_maand': data.mrb_per_maand
-    };
-    
-    for (const [fieldId, value] of Object.entries(fields)) {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.value = value;
-        }
-    }
-    
-    // Estimate fuel consumption based on type
-    const verbruikField = document.getElementById('verbruik');
-    if (verbruikField) {
-        if (data.brandstof.toLowerCase().includes('elektr')) {
-            verbruikField.value = '18'; // kWh/100km
-            document.getElementById('brandstofprijs').value = '0.35'; // €/kWh
-        } else if (data.brandstof.toLowerCase().includes('diesel')) {
-            verbruikField.value = '5.5';
-            document.getElementById('brandstofprijs').value = '1.85';
-        } else if (data.brandstof.toLowerCase().includes('hybrid')) {
-            verbruikField.value = '4.5';
-            document.getElementById('brandstofprijs').value = '1.95';
-        } else {
-            verbruikField.value = '7.0';
-            document.getElementById('brandstofprijs').value = '1.95';
-        }
-    }
-}
-
-/**
- * Calculate costs
- */
-async function berekenKosten() {
-    if (!currentAutoId) return;
-    
-    // Gather all form data
-    const formData = gatherFormData();
-    
-    // Show loading state
-    showCalculating(true);
-    
-    try {
-        // Send to PHP for calculation
-        const response = await fetch('includes/calculator.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData)
-        });
-        
-        const result = await response.json();
-        
-        // Display results
-        displayResults(result);
-        
-        // Save to autoData
-        autoData[currentAutoId].berekening = result;
-        saveData();
         
     } catch (error) {
-        // Fallback to client-side calculation
-        const result = calculateClientSide(formData);
-        displayResults(result);
+        console.error('Calculation request error:', error);
     } finally {
         showCalculating(false);
     }
 }
 
-/**
- * Client-side calculation fallback
- */
-function calculateClientSide(data) {
-    // Parse numbers
-    const dagwaarde = parseFloat(data.dagwaarde) || 15000;
-    const cataloguswaarde = parseFloat(data.cataloguswaarde) || 30000;
-    const bijtelling_pct = parseFloat(data.bijtelling_percentage) || 22;
-    const inkomsten_belasting = parseFloat(data.inkomstenbelasting_percentage) || 37;
-    const km_per_maand = parseInt(data.km_per_maand) || 2000;
-    const verbruik = parseFloat(data.verbruik) || 7.0;
-    const brandstofprijs = parseFloat(data.brandstofprijs) || 1.95;
-    const verzekering = parseFloat(data.verzekering_per_maand) || 75;
-    const onderhoud = parseFloat(data.onderhoud_per_maand) || 100;
-    const mrb = parseFloat(data.mrb_per_maand) || 50;
-    
-    // Check if youngtimer
-    const bouwjaar = parseInt(data.bouwjaar) || 2020;
-    const leeftijd = new Date().getFullYear() - bouwjaar;
-    const isYoungtimer = leeftijd >= 15 && leeftijd <= 30;
-    
-    // ZAKELIJK calculation
-    const bijtelling_basis = isYoungtimer ? dagwaarde : cataloguswaarde;
-    const bijtelling_percentage = isYoungtimer ? 35 : bijtelling_pct;
-    const bijtelling_jaar = bijtelling_basis * (bijtelling_percentage / 100);
-    const bijtelling_maand = bijtelling_jaar / 12;
-    const extra_belasting_maand = bijtelling_maand * (inkomsten_belasting / 100);
-    
-    // PRIVE calculation
-    const afschrijving = dagwaarde * 0.20 / 12; // 20% per jaar
-    const brandstof = (km_per_maand / 100) * verbruik * brandstofprijs;
-    const apk = leeftijd > 3 ? 50 / 12 : 0;
-    
-    const prive_totaal = afschrijving + brandstof + verzekering + onderhoud + mrb + apk;
-    const zakelijk_totaal = extra_belasting_maand;
-    
-    // Determine best option
-    const beste_optie = zakelijk_totaal < prive_totaal ? 'zakelijk' : 'prive';
-    const verschil = Math.abs(zakelijk_totaal - prive_totaal);
-    
-    return {
-        zakelijk: {
-            maandelijks: {
-                bijtelling: Math.round(bijtelling_maand * 100) / 100,
-                extra_belasting: Math.round(extra_belasting_maand * 100) / 100,
-                totaal: Math.round(zakelijk_totaal * 100) / 100
-            },
-            jaarlijks: {
-                totaal: Math.round(zakelijk_totaal * 12 * 100) / 100
-            }
-        },
-        prive: {
-            maandelijks: {
-                afschrijving: Math.round(afschrijving * 100) / 100,
-                brandstof: Math.round(brandstof * 100) / 100,
-                verzekering: Math.round(verzekering * 100) / 100,
-                onderhoud: Math.round(onderhoud * 100) / 100,
-                mrb: Math.round(mrb * 100) / 100,
-                apk: Math.round(apk * 100) / 100,
-                totaal: Math.round(prive_totaal * 100) / 100
-            },
-            jaarlijks: {
-                totaal: Math.round(prive_totaal * 12 * 100) / 100
-            }
-        },
-        advies: {
-            beste_optie: beste_optie,
-            verschil: Math.round(verschil * 100) / 100,
-            verschil_jaar: Math.round(verschil * 12 * 100) / 100,
-            tekst: beste_optie === 'zakelijk' 
-                ? `Auto van de zaak is €${Math.round(verschil * 12)} per jaar voordeliger!`
-                : `Privé auto is €${Math.round(verschil * 12)} per jaar voordeliger!`
-        }
-    };
-}
-
-/**
- * Display calculation results
- */
-function displayResults(result) {
-    // Check if results container exists, if not create it
-    let resultsContainer = document.getElementById('results-container');
-    if (!resultsContainer) {
-        resultsContainer = document.createElement('div');
-        resultsContainer.id = 'results-container';
-        resultsContainer.className = 'results-section';
-        document.querySelector('.main-content').appendChild(resultsContainer);
-    }
-    
-    // Create results HTML
-    const html = `
-        <div class="results-header">
-            <h2>📊 Berekening Resultaat</h2>
-            <button class="btn-export" onclick="exportResults()">📥 Export</button>
-        </div>
-        
-        <div class="results-grid">
-            <div class="result-card zakelijk">
-                <h3>🏢 Auto van de Zaak</h3>
-                <div class="result-total">
-                    €${formatNumber(result.zakelijk.maandelijks.totaal)}/maand
-                </div>
-                <div class="result-details">
-                    <div>Bijtelling: €${formatNumber(result.zakelijk.maandelijks.bijtelling)}</div>
-                    <div>Extra belasting: €${formatNumber(result.zakelijk.maandelijks.extra_belasting)}</div>
-                    <div class="result-year">Per jaar: €${formatNumber(result.zakelijk.jaarlijks.totaal)}</div>
-                </div>
-            </div>
-            
-            <div class="result-card prive">
-                <h3>🚗 Privé Auto</h3>
-                <div class="result-total">
-                    €${formatNumber(result.prive.maandelijks.totaal)}/maand
-                </div>
-                <div class="result-details">
-                    <div>Afschrijving: €${formatNumber(result.prive.maandelijks.afschrijving)}</div>
-                    <div>Brandstof: €${formatNumber(result.prive.maandelijks.brandstof)}</div>
-                    <div>Verzekering: €${formatNumber(result.prive.maandelijks.verzekering)}</div>
-                    <div>Onderhoud: €${formatNumber(result.prive.maandelijks.onderhoud)}</div>
-                    <div>MRB: €${formatNumber(result.prive.maandelijks.mrb)}</div>
-                    <div class="result-year">Per jaar: €${formatNumber(result.prive.jaarlijks.totaal)}</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="advice-section ${result.advies.beste_optie}">
-            <h3>💡 Advies</h3>
-            <p class="advice-text">${result.advies.tekst}</p>
-            <p class="advice-saving">
-                Besparing: <strong>€${formatNumber(result.advies.verschil_jaar)}</strong> per jaar
-            </p>
-        </div>
-        
-        <div class="chart-container">
-            <canvas id="kostenvergelijking"></canvas>
-        </div>
-    `;
-    
-    resultsContainer.innerHTML = html;
-    resultsContainer.classList.add('active');
-    
-    // Create chart
-    setTimeout(() => createComparisonChart(result), 100);
-}
-
-/**
- * Create comparison chart
- */
-function createComparisonChart(data) {
-    const ctx = document.getElementById('kostenvergelijking');
-    if (!ctx) return;
-    
-    // Simple bar chart with canvas
-    const canvas = ctx;
-    const context = canvas.getContext('2d');
-    
-    // Set canvas size
-    canvas.width = canvas.offsetWidth;
-    canvas.height = 300;
-    
-    // Clear canvas
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw bars
-    const barWidth = 100;
-    const barSpacing = 50;
-    const startX = (canvas.width - (barWidth * 2 + barSpacing)) / 2;
-    
-    const maxValue = Math.max(
-        data.zakelijk.maandelijks.totaal,
-        data.prive.maandelijks.totaal
-    );
-    
-    const scale = 200 / maxValue;
-    
-    // Zakelijk bar
-    const zakelijkHeight = data.zakelijk.maandelijks.totaal * scale;
-    context.fillStyle = '#667eea';
-    context.fillRect(startX, 250 - zakelijkHeight, barWidth, zakelijkHeight);
-    
-    // Prive bar
-    const priveHeight = data.prive.maandelijks.totaal * scale;
-    context.fillStyle = '#764ba2';
-    context.fillRect(startX + barWidth + barSpacing, 250 - priveHeight, barWidth, priveHeight);
-    
-    // Labels
-    context.fillStyle = '#333';
-    context.font = '14px sans-serif';
-    context.textAlign = 'center';
-    context.fillText('Zakelijk', startX + barWidth/2, 270);
-    context.fillText('Privé', startX + barWidth + barSpacing + barWidth/2, 270);
-    
-    // Values
-    context.fillText(
-        `€${formatNumber(data.zakelijk.maandelijks.totaal)}`, 
-        startX + barWidth/2, 
-        250 - zakelijkHeight - 10
-    );
-    context.fillText(
-        `€${formatNumber(data.prive.maandelijks.totaal)}`, 
-        startX + barWidth + barSpacing + barWidth/2, 
-        250 - priveHeight - 10
-    );
-}
-
-/**
- * Gather form data
- */
-function gatherFormData() {
+function getFormData() {
     const fields = [
-        'kenteken', 'merk_model', 'bouwjaar', 'brandstof', 'gewicht',
-        'dagwaarde', 'cataloguswaarde', 'aankoopprijs', 'restwaarde',
-        'afschrijving_jaren', 'bijtelling_percentage', 'mrb_per_maand',
-        'km_per_maand', 'km_prive_per_maand', 'verbruik', 'brandstofprijs',
-        'verzekering_per_maand', 'onderhoud_per_maand', 'gebruikstype'
+        'km_per_maand', 'bruto_salaris', 'cataloguswaarde', 'dagwaarde',
+        'bijtelling_percentage', 'brandstofprijs', 'verbruik', 'verzekering',
+        'onderhoud', 'mrb', 'aankoopprijs', 'restwaarde'
     ];
     
     const data = {};
-    fields.forEach(field => {
-        const element = document.getElementById(field);
-        if (element) {
-            data[field] = element.value;
+    
+    fields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            data[fieldId] = field.value || 0;
         }
     });
-    
-    // Add calculated fields
-    data.inkomstenbelasting_percentage = 37; // Default
     
     return data;
 }
 
-/**
- * Update current auto data
- */
-function updateAutoData() {
-    if (!currentAutoId) return;
+function updateResults(data) {
+    // Update zakelijk costs
+    updateElement('zakelijk-bijtelling', data.zakelijk.bijtelling_per_maand);
+    updateElement('zakelijk-belasting', data.zakelijk.belasting_per_maand);
+    updateElement('zakelijk-totaal-maand', data.zakelijk.totaal_per_maand);
+    updateElement('zakelijk-totaal-jaar', data.zakelijk.totaal_per_jaar);
     
-    const data = gatherFormData();
-    autoData[currentAutoId] = {
-        ...autoData[currentAutoId],
-        ...data,
-        laatstBijgewerkt: new Date().toISOString()
-    };
+    // Update privé costs
+    updateElement('prive-afschrijving', data.prive.afschrijving_per_maand);
+    updateElement('prive-brandstof', data.prive.brandstof_per_maand);
+    updateElement('prive-verzekering', data.prive.verzekering_per_maand);
+    updateElement('prive-onderhoud', data.prive.onderhoud_per_maand);
+    updateElement('prive-mrb', data.prive.mrb_per_maand);
+    updateElement('prive-apk', data.prive.apk_per_maand);
+    updateElement('prive-totaal-maand', data.prive.totaal_per_maand);
+    updateElement('prive-totaal-jaar', data.prive.totaal_per_jaar);
     
-    saveData();
-}
-
-/**
- * Add new auto
- */
-function addNewAuto() {
-    autoCounter++;
-    const autoId = `auto_${autoCounter}`;
-    
-    autoData[autoId] = {
-        id: autoId,
-        naam: `Auto ${autoCounter}`,
-        toegevoegd: new Date().toISOString()
-    };
-    
-    currentAutoId = autoId;
-    
-    // Clear form
-    document.querySelectorAll('input').forEach(input => {
-        if (input.type !== 'button' && input.type !== 'submit') {
-            input.value = '';
-        }
-    });
-    
-    // Update UI
-    updateAutoList();
-    saveData();
-}
-
-/**
- * Delete auto
- */
-function deleteAuto(autoId) {
-    if (confirm('Weet je zeker dat je deze auto wilt verwijderen?')) {
-        delete autoData[autoId];
+    // Update advice
+    const adviceElement = document.getElementById('advice');
+    if (adviceElement) {
+        adviceElement.textContent = data.vergelijking.advies;
         
-        if (currentAutoId === autoId) {
-            currentAutoId = Object.keys(autoData)[0] || null;
-            if (!currentAutoId) {
-                addNewAuto();
-            }
-        }
-        
-        updateAutoList();
-        saveData();
-    }
-}
-
-/**
- * Switch to auto
- */
-function switchToAuto(autoId) {
-    if (currentAutoId) {
-        updateAutoData();
-    }
-    
-    currentAutoId = autoId;
-    const auto = autoData[autoId];
-    
-    if (auto) {
-        // Fill form with auto data
-        for (const [key, value] of Object.entries(auto)) {
-            const element = document.getElementById(key);
-            if (element && element.tagName === 'INPUT') {
-                element.value = value;
-            }
-        }
-        
-        // Show auto info if data exists
-        if (auto.merk_model) {
-            document.getElementById('auto-info').classList.add('active');
-        }
-        
-        // Recalculate if data exists
-        if (auto.berekening) {
-            displayResults(auto.berekening);
+        // Add color based on advice
+        if (data.vergelijking.advies.includes('zakelijk')) {
+            adviceElement.style.color = '#1e40af';
+        } else if (data.vergelijking.advies.includes('privé')) {
+            adviceElement.style.color = '#059669';
+        } else {
+            adviceElement.style.color = '#f59e0b';
         }
     }
     
-    updateAutoList();
+    // Update differences
+    updateElement('verschil-maand', Math.abs(data.vergelijking.verschil_per_maand));
+    updateElement('verschil-jaar', Math.abs(data.vergelijking.verschil_per_jaar));
 }
 
-/**
- * Update auto list UI
- */
-function updateAutoList() {
-    // This would update a list of autos in the UI
-    // For now, just console log
-    console.log('Current autos:', autoData);
-}
-
-/**
- * Save data to localStorage
- */
-function saveData() {
-    try {
-        localStorage.setItem('autoKostenData', JSON.stringify(autoData));
-        localStorage.setItem('autoKostenCounter', autoCounter.toString());
-    } catch (e) {
-        console.error('Could not save data:', e);
+function updateElement(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = formatNumber(value);
     }
 }
 
-/**
- * Load saved data
- */
-function loadSavedData() {
-    try {
-        const saved = localStorage.getItem('autoKostenData');
-        if (saved) {
-            autoData = JSON.parse(saved);
-            autoCounter = parseInt(localStorage.getItem('autoKostenCounter') || '0');
-            
-            // Load first auto
-            const firstAutoId = Object.keys(autoData)[0];
-            if (firstAutoId) {
-                switchToAuto(firstAutoId);
-            }
-        }
-    } catch (e) {
-        console.error('Could not load saved data:', e);
+function showResults() {
+    const resultsSection = document.getElementById('results');
+    if (resultsSection) {
+        resultsSection.style.display = 'block';
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
     }
 }
 
-/**
- * Export results
- */
-function exportResults() {
-    if (!currentAutoId || !autoData[currentAutoId].berekening) {
-        alert('Geen berekening om te exporteren');
-        return;
-    }
-    
-    const data = autoData[currentAutoId];
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `autokosten_${data.kenteken || 'export'}_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-}
-
-/**
- * Toggle dark mode
- */
-function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
-    localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-}
-
-/**
- * Show message
- */
-function showMessage(text, type = 'info') {
-    const message = document.getElementById('message');
-    if (message) {
-        message.textContent = text;
-        message.className = `message active ${type}`;
-        
-        setTimeout(() => {
-            message.classList.remove('active');
-        }, 5000);
-    }
-}
-
-/**
- * Show calculating state
- */
-function showCalculating(show) {
-    const button = document.querySelector('.btn-calculate');
+function showCalculating(calculating) {
+    const button = document.getElementById('calculate');
     if (button) {
-        if (show) {
+        if (calculating) {
             button.disabled = true;
             button.textContent = '⏳ Berekenen...';
         } else {
             button.disabled = false;
-            button.textContent = '💰 Bereken Autokosten';
+            button.textContent = 'Bereken Vergelijking';
         }
     }
 }
 
-/**
- * Format number for display
- */
 function formatNumber(num) {
     return new Intl.NumberFormat('nl-NL', {
         minimumFractionDigits: 2,
@@ -660,9 +297,28 @@ function formatNumber(num) {
     }).format(num);
 }
 
-/**
- * Toggle collapsible sections
- */
-function toggleCollapsible(element) {
-    element.classList.toggle('active');
+function updateBijtelling() {
+    // Update bijtelling percentage based on current rules
+    // This could be expanded to automatically update based on vehicle data
 }
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Export functions for testing
+window.AutoKostenCalculator = {
+    lookupKenteken,
+    berekenKosten,
+    formatKenteken,
+    updateVehicleInfo,
+    updateFormFields
+};

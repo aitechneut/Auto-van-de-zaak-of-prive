@@ -2,6 +2,15 @@
 
 Alle belangrijke wijzigingen aan dit project worden gedocumenteerd in dit bestand.
 
+## [2.0.1] - 2025-08-14
+
+### 🔧 Critical Bug Fix
+- **FIXED**: Resolved Git merge conflicts in index.php and style.css
+- **FIXED**: Removed conflicting merge markers that prevented application from working
+- **UPDATED**: Clean, functional JavaScript with proper event handling
+- **TESTED**: All core functionality now working correctly
+- **IMPROVED**: Error handling and user feedback
+
 ## [2.0.0] - 2025-08-14
 
 ### 🎯 Major Update: Complete Bijtelling Database
