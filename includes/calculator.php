@@ -1,6 +1,9 @@
 <?php
 // Geavanceerde AutoKosten Calculator Engine
 // Met support voor RDW data en uitgebreide berekeningen
+// Updated met Nederlandse Bijtelling Database 2004-2025+
+
+require_once 'bijtelling_database.php';
 
 /**
  * Hoofdfunctie voor autokosten berekening
@@ -88,17 +91,24 @@ function berekenZakelijk($input) {
     $maandelijks = [];
     $jaarlijks = [];
     
-    // Bepaal bijtelling basis (dagwaarde voor youngtimers, cataloguswaarde voor nieuwer)
-    if ($input['is_youngtimer']) {
-        $bijtelling_basis = $input['dagwaarde'];
-        $bijtelling_percentage = 35; // Youngtimers altijd 35%
-    } else {
-        $bijtelling_basis = $input['cataloguswaarde'];
-        $bijtelling_percentage = $input['bijtelling_percentage'];
-    }
+    // Gebruik nieuwe bijtelling database voor accurate berekening
+    $bijtelling_result = BijtellingsDatabase::berekenBijtelling(
+        $input['bouwjaar'],
+        $input['brandstof'],
+        $input['cataloguswaarde'],
+        $input['dagwaarde'],
+        $input['co2_uitstoot'] ?? null,
+        $input['eerste_toelating'] ?? null
+    );
     
-    // Bijtelling berekening
-    $bijtelling_per_jaar = $bijtelling_basis * ($bijtelling_percentage / 100);
+    $bijtelling_basis = $bijtelling_result['bijtelling_basis'];
+    $bijtelling_percentage = $bijtelling_result['bijtelling_percentage'];
+    $bijtelling_per_jaar = $bijtelling_result['bijtelling_bedrag_jaar'];
+    
+    // Store detailed info for reporting
+    $input['bijtelling_info'] = $bijtelling_result;
+    
+    // Bijtelling already calculated in database result
     $bijtelling_per_maand = $bijtelling_per_jaar / 12;
     
     // Extra belasting door bijtelling
