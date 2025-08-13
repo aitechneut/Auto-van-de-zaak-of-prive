@@ -1,0 +1,4 @@
+cd /Users/richardsurie/Documents/Development/Projects/AutoKosten
+git add .
+git commit -m "Professional Business Styling v2.0 - Enhanced UI/UX with modern design, improved mobile experience, and better user flow"
+git push origin main
