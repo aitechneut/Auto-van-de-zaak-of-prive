@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # macOS system files
 .DS_Store
 .AppleDouble
@@ -12,10 +13,16 @@ Thumbs.db
 .idea/
 *.sublime-project
 *.sublime-workspace
+=======
+# Config files
+.env
+config/local.php
+>>>>>>> 8df5887b2437a8fa0c5f90c05bdc4a22048257cd
 
 # Logs
 *.log
 error_log
+<<<<<<< HEAD
 access_log
 
 # Temporary files
@@ -86,3 +93,23 @@ coverage/
 notes.txt
 todo.txt
 private/
+=======
+debug.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies (voor later)
+vendor/
+node_modules/
+
+# Uploads/cache
+uploads/
+cache/
+tmp/
+>>>>>>> 8df5887b2437a8fa0c5f90c05bdc4a22048257cd
